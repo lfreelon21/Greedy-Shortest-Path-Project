@@ -12,25 +12,26 @@ Usage: run program, then input values when prompted by console.
 #include <cstring>
 #include <cmath>
 #include <fstream>
+#include <vector>
 
 typedef std::pair<int, int> PAIR;
 typedef std::queue<std::pair<int,int>> PAIR_QUEUE;
 
+using namespace std;
 //fxn prototypes
-void PrintEnvironment(int**, int, int);
-void floodFill(int**, int, int, PAIR);
+void PrintEnvironment(vector<vector<int>>&, int, int);
+void floodFill(vector<vector<int>>&, int, int, PAIR);
 bool validCoords(PAIR, int, int);
 PAIR nextValidinNeighborhood(PAIR, PAIR, int, int);
 PAIR_QUEUE validNeighborhood(PAIR, int, int);
 bool withinOne(int, int);
-void Splash(int**, PAIR, int, int);
-bool emptyInValidNeighborhood(int**, PAIR, int, int);
-PAIR_QUEUE greedyPath(int**, PAIR, PAIR, int, int);
-void insertImpassibles(int**, int, int, int);
-PAIR* uniqueCoords(int, int, int);
-char** charArr(int**, int, int);
+void Splash(vector<vector<int>>&, PAIR, int, int);
+bool emptyInValidNeighborhood(vector<vector<int>>&, PAIR, int, int);
+PAIR_QUEUE greedyPath(vector<vector<int>>&, PAIR, PAIR, int, int);
+void insertImpassibles(vector<vector<int>>&, int, int, int);
+vector<PAIR> uniqueCoords(int, int, int);
+vector<vector<char>> charArr(vector<vector<int>>&, int, int);
 
-using namespace std;
 
 //operators for pairs to shorten addition, subtraction, and output formatting
 PAIR operator+ (const PAIR& lhs, const PAIR& rhs){
@@ -73,16 +74,7 @@ int main(){
         cin >> height;
     }
 
-    int** arr = new int*[height];
-
-    for(int i = 0; i < height; i++){
-        arr[i] = new int[width];
-    }
-    for(int i = 0; i < height; i++){
-        for(int j = 0; j < width; j++){
-            arr[i][j] = 0;
-        }
-    }
+    vector<vector<int>> vec(height, vector<int>(width, 0));
 
     while(!(pctImpassible >= 0 && pctImpassible <= 100)){
         cout << "\nEnter the percent of impassible terrain (0-100): ";
@@ -99,15 +91,15 @@ int main(){
     }
     if(proceed){
 
-        insertImpassibles(arr, pctImpassible, width, height);
-        PrintEnvironment(arr, width, height);
+        insertImpassibles(vec, pctImpassible, width, height);
+        PrintEnvironment(vec, width, height);
 
         cout << "\nPlease enter the Goal Position X: ";
         cin >> goalX;
         cout << "Please enter the Goal Position Y: ";
         cin >> goalY;
 
-        while(!validCoords(PAIR(goalY, goalX), width, height) || arr[goalY][goalX] == -1){
+        while(!validCoords(PAIR(goalY, goalX), width, height) || vec[goalY][goalX] == -1){
             cout << "\n\nSorry, that position is inside an obstacle\n";
             cout << "Please enter the Goal Position X: ";
             cin >> goalX;
@@ -115,19 +107,19 @@ int main(){
             cin >> goalY;
         }
 
-        arr[goalY][goalX] = 1;
+        vec[goalY][goalX] = 1;
         PAIR goal(goalY, goalX);
-        floodFill(arr, width, height, goal);//flood array with values
-        PrintEnvironment(arr, width, height);
+        floodFill(vec, width, height, goal);//flood array with values
+        PrintEnvironment(vec, width, height);
 
-        char** charArray = charArr(arr, width, height);//dynamically create char array
+        vector<vector<char>> charArray = charArr(vec, width, height);//dynamically create char array
 
         cout << "\nPlease enter the Start Position X: ";
         cin >> startX;
         cout << "Please enter the Start Position Y: ";
         cin >> startY;
 
-        while(!validCoords(PAIR(startY, startX), width, height) || arr[startY][startX] == -1){
+        while(!validCoords(PAIR(startY, startX), width, height) || vec[startY][startX] == -1){
             cout << "\n\nSorry, that position is inside an obstacle\n";
             cout << "\nPlease enter the Start Position X: ";
             cin >> startX;
@@ -138,7 +130,7 @@ int main(){
         PAIR start(startY, startX);
         charArray[startY][startX] = '@';
         charArray[goalY][goalX] = '$';
-        PAIR_QUEUE greedy = greedyPath(arr, start, goal, width, height);
+        PAIR_QUEUE greedy = greedyPath(vec, start, goal, width, height);
 
         if(greedy.back() != goal || greedy.empty()) cout << "\nNo Path Found.\n";
         
@@ -147,7 +139,7 @@ int main(){
                 charArray[greedy.front().first][greedy.front().second] = '*';
             greedy.pop();
         }
-        PrintEnvironment(arr, width, height);
+        PrintEnvironment(vec, width, height);
         cout <<"\n";
         for(int i = 0; i < height; i++){
             for(int j = 0; j < width; j++){
@@ -165,20 +157,12 @@ int main(){
         }
         of.close();
 
-        for(int i = 0; i < height; i++){//delete dynamically allocated char array
-            delete[] charArray[i];
-        }
-        delete[] charArray;
     }
-    for(int i = 0; i < height; i++){//delete dynamically allocated int array
-        delete[] arr[i];
-    }
-    delete[] arr;
 }
 
-void floodFill(int** arr, int w, int h, PAIR origin){
+void floodFill(vector<vector<int>> &vec, int w, int h, PAIR origin){
 
-    int centerVal = arr[origin.first][origin.second];
+    int centerVal = vec[origin.first][origin.second];
 
     vector<PAIR> validList = {
         PAIR(origin.first - 1, origin.second),
@@ -191,12 +175,12 @@ void floodFill(int** arr, int w, int h, PAIR origin){
         PAIR(origin.first + 1, origin.second - 1)
     };
     
-    Splash(arr, origin, w, h);
+    Splash(vec, origin, w, h);
 
     for(PAIR dir : validList){
 
-        if(validCoords(dir, w, h) && emptyInValidNeighborhood(arr, dir, w, h) && arr[dir.first][dir.second] != -1){
-            floodFill(arr, w, h, dir);
+        if(validCoords(dir, w, h) && emptyInValidNeighborhood(vec, dir, w, h) && vec[dir.first][dir.second] != -1){
+            floodFill(vec, w, h, dir);
         }
     }
 }
@@ -258,16 +242,16 @@ bool withinOne(int n, int m){
     if(n-m == 1 || n-m == -1 || n-m == 0) return true;
     return false;
 }
-void Splash(int** arr, PAIR center, int w, int h){
+void Splash(vector<vector<int>> &vec, PAIR center, int w, int h){
 
     PAIR_QUEUE Neighborhood = validNeighborhood(center, w, h), cleanedNeighborhood;
-    int centerVal = arr[center.first][center.second], currVal;
+    int centerVal = vec[center.first][center.second], currVal;
 
     if(centerVal == 0 || centerVal == -1) return;
 
     while(!Neighborhood.empty()){//O(8) ~~ O(1)
         
-        currVal = arr[Neighborhood.front().first][Neighborhood.front().second];
+        currVal = vec[Neighborhood.front().first][Neighborhood.front().second];
 
         if(currVal != -1) cleanedNeighborhood.push(Neighborhood.front());
         
@@ -275,31 +259,31 @@ void Splash(int** arr, PAIR center, int w, int h){
     }
     while(!cleanedNeighborhood.empty()){// O(8) ~~ O(1)
 
-        currVal = arr[cleanedNeighborhood.front().first][cleanedNeighborhood.front().second];
+        currVal = vec[cleanedNeighborhood.front().first][cleanedNeighborhood.front().second];
 
         if(currVal == 0 || (!withinOne(centerVal, currVal) && centerVal < currVal)) 
-            arr[cleanedNeighborhood.front().first][cleanedNeighborhood.front().second] = centerVal + 1;
+            vec[cleanedNeighborhood.front().first][cleanedNeighborhood.front().second] = centerVal + 1;
 
         cleanedNeighborhood.pop();
     }
 }
-bool emptyInValidNeighborhood(int** arr, PAIR center, int w, int h){//O(1)
+bool emptyInValidNeighborhood(vector<vector<int>> &vec, PAIR center, int w, int h){//O(1)
 
     PAIR_QUEUE n = validNeighborhood(center, w, h);
-    int centerVal = arr[center.first][center.second], curr;
+    int centerVal = vec[center.first][center.second], curr;
 
     if (centerVal == 0) return false;
 
     while(!n.empty()){//O(8) ~~ O(1)
 
-        curr = arr[n.front().first][n.front().second];
+        curr = vec[n.front().first][n.front().second];
 
         if(curr == 0 || (!withinOne(curr, centerVal) && centerVal < curr)) return true;
         n.pop();
     }
     return false;
 }
-PAIR_QUEUE greedyPath(int** arr, PAIR start, PAIR goal, int w, int h){
+PAIR_QUEUE greedyPath(vector<vector<int>> &vec, PAIR start, PAIR goal, int w, int h){
 
     PAIR curr = start;
     PAIR_QUEUE possibleMoves, Path;
@@ -307,16 +291,16 @@ PAIR_QUEUE greedyPath(int** arr, PAIR start, PAIR goal, int w, int h){
     PAIR move;
     int diffGreatest = 0, diffCurr;
 
-    while(arr[curr.first][curr.second] != arr[goal.first][goal.second] && diffGreatest != -3){
+    while(vec[curr.first][curr.second] != vec[goal.first][goal.second] && diffGreatest != -3){
 
         possibleMoves = validNeighborhood(curr, w, h);
         diffGreatest = -3;
 
         while(!possibleMoves.empty()){
 
-            diffCurr = arr[curr.first][curr.second] - arr[possibleMoves.front().first][possibleMoves.front().second];
+            diffCurr = vec[curr.first][curr.second] - vec[possibleMoves.front().first][possibleMoves.front().second];
 
-            if(diffCurr > diffGreatest && arr[possibleMoves.front().first][possibleMoves.front().second] != -1){
+            if(diffCurr > diffGreatest && vec[possibleMoves.front().first][possibleMoves.front().second] != -1){
                 diffGreatest = diffCurr;
                 move = possibleMoves.front();
             }
@@ -327,23 +311,22 @@ PAIR_QUEUE greedyPath(int** arr, PAIR start, PAIR goal, int w, int h){
     }
     return Path;
 }
-void insertImpassibles(int** arr, int percentage, int w, int h){//input impassibles into arr at random locs
+void insertImpassibles(vector<vector<int>> &vec, int percentage, int w, int h){//input impassibles into arr at random locs
 
     int numElems = w * h;
     double percentDecimal = percentage / 100.0;
     int numImpassible = percentDecimal * numElems;
     while(numImpassible >= numElems-1) numImpassible--;//ensure numImpassible is not greater than or equal to number of elements in array - 1
     
-    PAIR* impassibles = uniqueCoords(numImpassible, w, h);
+    vector<PAIR> impassibles = uniqueCoords(numImpassible, w, h);
     for(int i = 0; i < numImpassible; i++){
-        arr[impassibles[i].first][impassibles[i].second] = -1;
+        vec[impassibles[i].first][impassibles[i].second] = -1;
     }
-    delete[] impassibles;//avoid mem leak
 }
-PAIR* uniqueCoords(int num, int w, int h){//Pair array of unique coordinates
+vector<PAIR> uniqueCoords(int num, int w, int h){//Pair array of unique coordinates
 
     srand((unsigned)time(NULL));
-    PAIR* randPairs = new PAIR[num];
+    vector<PAIR> randPairs(num, make_pair(0,0));
     bool overlap;
 
     for(int i = 0; i < num; i++){
@@ -357,26 +340,22 @@ PAIR* uniqueCoords(int num, int w, int h){//Pair array of unique coordinates
     }
     return randPairs;
 }
-void PrintEnvironment(int** arr, int w, int h){
+void PrintEnvironment(vector<vector<int>> &vec, int w, int h){
     
     for(int i = 0; i < h; i++){
         for(int j = 0; j < w; j++){
-            cout << setw(4) << arr[i][j];
+            cout << setw(4) << vec[i][j];
         }
         cout << endl;
     }
 }
-char** charArr(int** arr, int w, int h){
+vector<vector<char>> charArr(vector<vector<int>> &vec, int w, int h){
 
-    char** charArray = new char*[h];
+    vector<vector<char>> charArray(h, vector<char>(w, ' '));
 
-    for(int i = 0; i < h; i++){//create array dynamically
-        charArray[i] = new char[w];
-    }
     for(int i = 0; i < h; i++){//input obstacles and empty chars
         for(int j = 0; j < w; j++){
-            if(arr[i][j] == -1) charArray[i][j] = '#';
-            else charArray[i][j] = ' ';
+            if(vec[i][j] == -1) charArray[i][j] = '#';
         }
     }
     return charArray;
